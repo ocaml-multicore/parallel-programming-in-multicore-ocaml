@@ -1,0 +1,30 @@
+(executable
+  (name hello_chan)
+  (modules hello_chan)
+  (libraries domainslib))
+
+(executable
+  (name chan_blocking)
+  (modules chan_blocking)
+  (libraries domainslib))
+
+(executable
+  (name chan_buffer)
+  (modules chan_buffer)
+  (libraries domainslib))
+
+(executable
+  (name chan_poll)
+  (modules chan_poll)
+  (libraries domainslib))
+
+
+(executable
+  (name senders_recievers)
+  (modules senders_recievers)
+  (libraries domainslib))
+
+(executable
+  (name task_distribution)
+  (modules task_distribution)
+  (libraries domainslib))

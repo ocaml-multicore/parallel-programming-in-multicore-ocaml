@@ -1,0 +1,3 @@
+(executable
+  (name square_domain)
+  (modules square_domain))

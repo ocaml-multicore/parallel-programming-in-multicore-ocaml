@@ -1,0 +1,14 @@
+(executable
+  (name float_init_par)
+  (modules float_init_par)
+  (libraries domainslib))
+
+(executable
+  (name float_init_par2)
+  (modules float_init_par2)
+  (libraries domainslib))
+
+(executable
+  (name float_init_par3)
+  (modules float_init_par3)
+  (libraries domainslib))
