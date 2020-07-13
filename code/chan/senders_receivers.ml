@@ -15,8 +15,8 @@ let recv c =
 let _ =
   let senders = Array.init num_domains
                   (fun _ -> Domain.spawn(fun _ -> send c )) in
-  let recievers = Array.init num_domains
+  let receivers = Array.init num_domains
                   (fun _ -> Domain.spawn(fun _ -> recv c)) in
 
   Array.iter Domain.join senders;
-  Array.iter Domain.join recievers
+  Array.iter Domain.join receivers

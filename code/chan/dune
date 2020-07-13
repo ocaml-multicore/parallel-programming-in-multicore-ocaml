@@ -20,8 +20,8 @@
 
 
 (executable
-  (name senders_recievers)
-  (modules senders_recievers)
+  (name senders_receivers)
+  (modules senders_receivers)
   (libraries domainslib))
 
 (executable

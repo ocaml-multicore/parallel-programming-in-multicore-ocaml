@@ -423,7 +423,7 @@ threshold, below which the computation can be done sequentially.
 ## Bounded Channels
 
 Channels act as medium to communicate data between domains. They can be shared
-between multiple sending and recieving domains. Channels in Multicore OCaml
+between multiple sending and receiving domains. Channels in Multicore OCaml
 come in two flavours:
 
 * **Bounded**: buffered channels with a fixed size. A channel with buffer size
@@ -460,9 +460,9 @@ let _ =
 ```
 
 The above example would be essentially blocking indefinitely because the `send`
-does not have a corresponding recieve. If we instead create a bounded channel
+does not have a corresponding receive. If we instead create a bounded channel
 with buffer size n, it can store up to [n] objects in the channel without a
-corresponding recieve, exceeding which the sending would block. We can try it
+corresponding receive, exceeding which the sending would block. We can try it
 with the same example as above just by changing the buffer size to 1.   
 
 ```ocaml
@@ -516,11 +516,11 @@ let recv c =
 let _ =
   let senders = Array.init num_domains
                   (fun _ -> Domain.spawn(fun _ -> send c )) in
-  let recievers = Array.init num_domains
+  let receivers = Array.init num_domains
                   (fun _ -> Domain.spawn(fun _ -> recv c)) in
 
   Array.iter Domain.join senders;
-  Array.iter Domain.join recievers
+  Array.iter Domain.join receivers
 ```
 
 `(Domain.self () :> int)` returns the id of current domain.
@@ -575,8 +575,8 @@ We have created an unbounded channel `c` which will act as a store for all the
 tasks. We'll pay attention to two functions here: `create_work` and `worker`.
 
 `create_work` takes an array of tasks and pushes all elements of tasks to the
-channel `c`. The `worker` function recieves tasks from the channel and executes
-a function f with the recieved task as parameter. It keeps recursing until it
+channel `c`. The `worker` function receives tasks from the channel and executes
+a function f with the received task as parameter. It keeps recursing until it
 encounters a Quit message, which is why we send `Quit` messages to the channel,
 indicating that the worker can terminate.
 
