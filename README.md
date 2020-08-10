@@ -15,6 +15,7 @@ following sections:
 * [Channels](#channels)
    * [Bounded Channels](#bounded-channels)
    * [Task Distribution using Channels](#task-distribution-using-channels)
+* [Domain-local Storage](#domain-local-storage)
 * [Profiling your code](#profiling-your-code)
    * [Perf](#perf)
    * [Eventlog](#eventlog)
@@ -586,6 +587,55 @@ function. The granularity of a task could be tweaked as well, by changing it in
 the worker function, for instance, worker can run for a range of tasks instead
 of single one.
 
+# Domain-local Storage
+
+Domain Local Storage offers an easy way to store variables that are specific to
+a domain. We can think of domain-local variables as global variables which can
+be accessed only from a particular domain.
+
+DLS variables are stored with a key. Keys can be generated using the `new_key`
+function.
+
+```
+# let k = Domain.DLS.new_key ();;
+val k : '_weak1 Domain.DLS.key = <abstr>
+```
+
+If you already know the type of the key, you can even specify it at the time of
+creation. To create a key associated to an integer.
+
+```
+# let k : int Domain.DLS.key = Domain.DLS.new_key ();;
+val k : int Domain.DLS.key = <abstr>
+```
+
+We can use this key and store a value associated to it from the calling domain.
+
+```
+# Domain.DLS.set k 100;;
+- : unit = ()
+```
+
+At some later point in the same domain, the value attached to the key `k` can
+be retreived with the `get` function. If a value is associated to the key in
+the calling domain, `get` returns its value as an option value, if not it
+returns `None`.
+
+```
+# Domain.DLS.get k;;
+- : int option = Some 100
+```
+
+These are all the functions present in the DLS interface. Though the interface
+looks quite simple, one has to exercise some amount of caution while using it.
+A natural question that may occur to the reader is; when should one use DLS?
+
+Short answer is, only when it is absolutely necessary. Think of it like global
+variables and avoid it like how you avoid global variables. There are
+situations where it is useful to use DLS for the sake of performance or
+correctness. We will see one such case shortly. In general, performance might
+take a hit if there are many variables stored in DLS. This is due to `get` and
+`set` functions having linear-time complexity.
 
 # Profiling your code
 
@@ -700,7 +750,7 @@ Random states are all allocated by the same domain in an array with small
 number of elements, possibly located close to each other in physical memory.
 When multiple domains try to access them, they might possibly share cache
 lines, what's termed as `false sharing`. We can confirm our suspicion with the
-help of `perf c2c`.
+help of `perf c2c` on Intel machines.
 
 ```
 $ perf c2c record _build/default/float_init_par2.exe 4 100_000_000
@@ -714,19 +764,25 @@ Index             Address  Node  PA cnt  records     Hitm    Total      Lcl     
 ```
 
 As evident from the report, there's quite a lot of false sharing happening in
-the code. To eliminate false sharing, we can allocate the Random state in the
-domain that is going to use it. This way, the states will be allocated with
-memory locations far from each other.
+the code. To eliminate false sharing, we can use domain-local storage to store
+one Random State for every domain and use it to generate Random values.
 
 ```ocaml
 module T = Domainslib.Task
 let n = try int_of_string Sys.argv.(2) with _ -> 1000
 let num_domains = try int_of_string Sys.argv.(1) with _ -> 4
 
+let k : Random.State.t Domain.DLS.key = Domain.DLS.new_key ()
+let get_state () = try Option.get @@ Domain.DLS.get k with _ ->
+  begin
+    Domain.DLS.set k (Random.State.make_self_init ());
+    Option.get @@ Domain.DLS.get k
+  end
+
 let arr = Array.create_float n
 
 let init_part s e arr =
-    let my_state = Random.State.make_self_init () in
+    let my_state = get_state () in
     for i = s to e do
       Array.unsafe_set arr i (Random.State.float my_state 100.)
     done
@@ -743,13 +799,13 @@ Now the results are
 | Cores | Time  | Speedup     |
 |-------|-------|-------------|
 | 1     | 3.055 | 1           |
-| 2     | 1.552 | 1.968427835 |
-| 4     | 0.799 | 3.823529412 |
-| 8     | 0.422 | 7.239336493 |
-| 12    | 0.302 | 10.11589404 |
-| 16    | 0.242 | 12.62396694 |
-| 20    | 0.208 | 14.6875     |
-| 24    | 0.186 | 16.42473118 |
+| 2     | 1.786 | 1.710526315 |
+| 4     | 0.857 | 3.564760793 |
+| 8     | 0.525 | 5.819047619 |
+| 12    | 0.366 | 8.346994535 |
+| 16    | 0.306 | 9.983660131 |
+| 20    | 0.254 | 12.02755906 |
+| 24    | 0.208 | 14.6875     |
 
 
 ![initialisation](images/initialisation.png)
