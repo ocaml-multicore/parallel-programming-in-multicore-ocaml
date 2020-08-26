@@ -5,20 +5,21 @@ Multicore OCaml. All the code examples along with their corresponding dune file
 are available in the `code/` directory. The tutorial is organised into the
 following sections:
 
-* [Introduction](#introduction)
-   * [Installation](#installation)
-* [Domains](#domains)
-* [Domainslib](#domainslib)
-   * [Task pool](#task-pool)
-   * [Parallel for](#parallel-for)
-   * [Async-Await](#async-await)
-* [Channels](#channels)
-   * [Bounded Channels](#bounded-channels)
-   * [Task Distribution using Channels](#task-distribution-using-channels)
-* [Profiling your code](#profiling-your-code)
-   * [Perf](#perf)
-   * [Eventlog](#eventlog)
-
+- [Introduction](#introduction)
+  * [Installation](#installation)
+  * [Compatibility with existing code](#compatibility-with-existing-code)
+- [Domains](#domains)
+- [Domainslib](#domainslib)
+  * [Task pool](#task-pool)
+  * [Parallel for](#parallel-for)
+  * [Async-Await](#async-await)
+    + [Fibonacci numbers in parallel](#fibonacci-numbers-in-parallel)
+- [Channels](#channels)
+  * [Bounded Channels](#bounded-channels)
+  * [Task Distribution using Channels](#task-distribution-using-channels)
+- [Profiling your code](#profiling-your-code)
+  * [Perf](#perf)
+  * [Eventlog](#eventlog)
 
 # Introduction
 
@@ -26,6 +27,13 @@ Multicore OCaml is an extension of OCaml with native support for Shared Memory
 Parallelism through `Domains` and Concurrency through `Algebraic effects`. It is
 slowly, but steadily being merged to trunk OCaml. Domains-only multicore is
 expected to land first followed by Algebraic effects.
+
+**Concurrency** is how we partition multiple computations such that they can
+run in overlapping time periods rather than strictly sequentially.
+**Parallelism** is the act of running multiple computations simultaneously,
+primarily by using multiple cores on a multicore machine. The multicore wiki
+has [comprehensive notes](https://github.com/ocaml-multicore/ocaml-multicore/wiki/Concurrency-and-parallelism-design-notes) on the design decisions and
+current status of concurrency and parallelism in Multicore OCaml.
 
 The Multicore OCaml compiler comes with two variants of Garbage Collector,
 namely a concurrent minor collector (ConcMinor) and a stop-the-world parallel
@@ -35,7 +43,8 @@ need any changes in the C API of the compiler, unlike ConcMinor which breaks
 the C API. So, the consensus is to go forward with ParMinor during up-
 streaming of the Domains-only Multicore. ConcMinor is at OCaml version `4.06.1`
 and ParMinor has been promoted to `4.10.0` and `4.11.0`. More details on the GC
-design and evaluation are available in [this paper](https://arxiv.org/abs/2004.11663).
+design and evaluation are available in
+[this ICFP 2020 paper](https://dl.acm.org/doi/10.1145/3408995).
 
 The Multicore ecosystem also has the following libraries to complement the
 compiler.
@@ -51,18 +60,26 @@ Multicore OCaml
 swap library
 
 This tutorial takes you through ways in which one can profitably write parallel
-programs in Multicore OCaml. The effect handlers story is not touched upon
+programs in Multicore OCaml. A reader is assumed to be familiar with OCaml, if
+not, they are encouraged to read [Real World OCaml](https://dev.realworldocaml.org/toc.html). The effect handlers story is not touched upon
 here, for anyone interested, do check out this [tutorial](https://github.com/ocamllabs/ocaml-effects-tutorial) and [examples](https://github.com/ocaml-multicore/effects-examples).
 
 ## Installation
 
-While up-streaming of the multicore bits to trunk is still work in progress, one
-can start using Multicore OCaml with the help of [multicore-opam](https://github.com/ocaml-multicore/multicore-opam).  Installation instructions for
+Up-streaming of the multicore bits to trunk OCaml in progress, with [some PRs already merged to trunk](https://github.com/ocaml/ocaml/pulls?q=is%3Apr+label%3Amulticore-prerequisite+).
+One can start using Multicore OCaml with the help of [multicore-opam](https://github.com/ocaml-multicore/multicore-opam). Installation instructions for
 Multicore OCaml 4.10.0 compiler and domainslib can be found [here](https://github.com/ocaml-multicore/multicore-opam#install-multicore-ocaml).
 Other available compiler variants are [here](https://github.com/ocaml-multicore/multicore-opam/tree/master/packages/ocaml-variants).
 
 It will also be useful to install `utop` on your Multicore switch.
 `opam install utop` should work out of the box.
+
+## Compatibility with existing code
+
+Multicore OCaml is compatible with existing OCaml code. It has support for the
+C API along with some tricky parts of the language like ephemerons and
+finalisers. To maintain compatibility with `ppx` there is a `no-effect-syntax`
+compiler variant in multicore-opam, that removes some syntax extensions.
 
 # Domains
 
@@ -129,8 +146,8 @@ Error: Unbound module Atomic
 Error: Library "domainslib" not found.
 ```
 
-These errors usually mean that the switch used to compile the code is not a
-multicore switch. Using a multicore switch should resolve them.
+These errors usually mean that the compiler switch used to compile the code is
+not a multicore switch. Using a multicore compiler variant should resolve them.
 
 # Domainslib
 
@@ -184,19 +201,20 @@ after all tasks are done.
 
 ## Parallel for
 
-`parallel_for` is a powerful primitive in the Task API that can scale well with
-very little change in sequential code.
+`parallel_for` is a powerful primitive in the Task API which can be used to
+parallelise computations that use for loops. It can scale well with very little
+change to the sequential code.
 
 Let us consider the example of matrix multiplication.
 
-First, let us write the sequential version of a function which performs matrix
-multiplication of two matrices and returns the result.
+First, let us write down the sequential version of a function which performs
+matrix multiplication of two matrices and returns the result.
 
 ```ocaml
-let multiply_matrix a b =
+let matrix_multiply a b =
   let i_n = Array.length a in
   let j_n = Array.length b.(0) in
-  let k_n = Array.length b
+  let k_n = Array.length b in
   let res = Array.make_matrix i_n j_n 0 in
   for i = 0 to i_n - 1 do
     for j = 0 to j_n - 1 do
@@ -208,11 +226,30 @@ let multiply_matrix a b =
   res
 ```
 
-Arrays offer better efficiency compared with lists in the context of Multicore
-OCaml. Although they are not generally favoured in functional programming, using
-arrays for the sake of efficiency is a reasonable trade-off.
+To make this function run in parallel, one might be inclined to spawn a new
+domain for every iteration in the loop, which would look like:
 
-We shall parallelise matrix multiplication with the help of a `parallel_for`.
+```ocaml
+  let domains = Array.init i_n (fun i ->
+    Domain.spawn(fun _ ->
+      for j = 0 to j_n - 1 do
+        for k = 0 to k_n - 1 do
+          res.(i).(j) <- res.(i).(j) + a.(i).(k) * b.(k).(j)
+        done
+      done)) in
+   Array.iter Domain.join domains
+```
+This will be *disastrous* in terms of performance majorly due to the fact that
+spawning a new domain is an expensive operation. What instead task pool offers
+us is, a finite set of available domains, which can be used to run your
+computations in parallel.
+
+Arrays are usually more efficient compared with lists in the context of
+Multicore OCaml. Although they are not generally favoured in functional
+programming, using arrays for the sake of efficiency is a reasonable trade-off.
+
+A better way to parallelise matrix multiplication with the help of a
+`parallel_for`.
 
 ```ocaml
 let parallel_matrix_multiply pool a b =
@@ -243,13 +280,16 @@ is recommended to use it as a function parameter.
 We shall examine the parameters of `parallel_for`. It takes in `pool` as
 discussed earlier, `start` and `finish` as the names suggset are the starting
 and ending values of the loop iterations, `body` contains the actual loop body
-to be executed. One parameter that doesn't exist in the sequential version is
-the `chunk_size`. Chunk size determines the granularity of tasks when executing on multiple cores. The ideal `chunk_size` depends on a combination
+to be executed.
+
+One parameter that doesn't exist in the sequential version is
+the `chunk_size`. Chunk size determines the granularity of tasks when executing
+on multiple cores. The ideal `chunk_size` depends on a combination
 of factors:
 
 * **Nature of the loop:** There are two things to consider pertaining to the
-loop while deciding on a `chunk_size` to use, the number of iterations in the
-loop and amount of time each iteration takes. If the amount of time taken by
+loop while deciding on a `chunk_size` to use, the *number of iterations* in the
+loop and *amount of time* each iteration takes. If the amount of time taken by
 every iteration is roughly equal, then the `chunk_size` could be number of
 iterations divided by the number of cores. On the other hand, if the amount of
 time taken is different for every iteration, the chunks should be smaller. If
@@ -598,6 +638,45 @@ debugging. Let's do that with the help of an example.
 
 ## Perf
 
+Linux perf is a tool that has proved to be very useful to profile Multicore
+OCaml code.
+
+**Profiling serial code**
+
+Profiling serial code can help us identify parts of code which can potentially
+benefit from parallelising. Let's do it for the sequential version of matrix
+multiplication.
+
+```
+perf record --call-graph dwarf ./matrix_multiplication.exe 1024
+```
+
+We get a profile that tells us how much time is spent in the `matrix_multiply`
+function which we wanted to parallelise. What we also need to keep in mind, is
+that if a lot more time is spent outside the function we'd like to parallelise,
+the maximum speedup we could achieve would be lower.
+
+Profiling serial code can help us discover the hotspots where we might want to
+introduce parallelism.  
+
+```
+Samples: 51K of event 'cycles:u', Event count (approx.): 28590830181
+  Children      Self  Command     Shared Object     Symbol
++   99.84%     0.00%  matmul.exe  matmul.exe        [.] caml_start_program
++   99.84%     0.00%  matmul.exe  matmul.exe        [.] caml_program
++   99.84%     0.00%  matmul.exe  matmul.exe        [.] camlDune__exe__Matmul__entry
++   99.32%    99.31%  matmul.exe  matmul.exe        [.] camlDune__exe__Matmul__matrix_multiply_211
++    0.57%     0.04%  matmul.exe  matmul.exe        [.] camlStdlib__array__init_104
+     0.47%     0.37%  matmul.exe  matmul.exe        [.] camlStdlib__random__intaux_278
+```
+
+
+
+### Overheads in parallel code
+
+Perf can be helpful in identifying overheads in your parallel code. We'll see
+one such example here where we improve the performance by removing overheads.
+
 **Parallel initialisation of a float array with random numbers**
 
 Array initialisation using standard library's `Array.init` is sequential.
@@ -700,7 +779,7 @@ Random states are all allocated by the same domain in an array with small
 number of elements, possibly located close to each other in physical memory.
 When multiple domains try to access them, they might possibly share cache
 lines, what's termed as `false sharing`. We can confirm our suspicion with the
-help of `perf c2c`.
+help of `perf c2c` on Intel machines.
 
 ```
 $ perf c2c record _build/default/float_init_par2.exe 4 100_000_000
