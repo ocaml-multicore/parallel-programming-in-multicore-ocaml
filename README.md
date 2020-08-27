@@ -258,7 +258,7 @@ let parallel_matrix_multiply pool a b =
   let k_n = Array.length b in
   let res = Array.make_matrix i_n j_n 0 in
 
-  Task.parallel_for pool ~chunk_size:chunk_size ~start:0 ~finish:(i_n - 1) ~body:(fun i ->
+  Task.parallel_for pool ~start:0 ~finish:(i_n - 1) ~body:(fun i ->
     for j = 0 to j_n - 1 do
       for k = 0 to k_n - 1 do
         res.(i).(j) <- res.(i).(j) + a.(i).(k) * b.(k).(j)
@@ -282,10 +282,12 @@ discussed earlier, `start` and `finish` as the names suggset are the starting
 and ending values of the loop iterations, `body` contains the actual loop body
 to be executed.
 
-One parameter that doesn't exist in the sequential version is
-the `chunk_size`. Chunk size determines the granularity of tasks when executing
-on multiple cores. The ideal `chunk_size` depends on a combination
-of factors:
+Parallel for also has an optional parameter `chunk_size`. It determines the
+granularity of tasks when executing them on multiple domains. If no parameter
+is given for `chunk size`, a default chunk size is determined which performs
+well in most cases. Only if the default chunk size doesn't work well, it is
+recommended to experiment with different chunk sizes. The ideal `chunk_size`
+depends on a combination of factors:
 
 * **Nature of the loop:** There are two things to consider pertaining to the
 loop while deciding on a `chunk_size` to use, the *number of iterations* in the
@@ -308,16 +310,16 @@ Let us find how the parallel matrix multiplication scales on multiple cores.
 
 The speedup vs core is enumerated below for input matrices of size 1024x1024.
 
-| Cores | Time(s)| Speedup     |
-|-------|--------|-------------|
-| 1     | 10.153 | 1           |
-| 2     | 5.166  | 1.965350368 |
-| 4     | 2.65   | 3.831320755 |
-| 8     | 1.35   | 7.520740741 |
-| 12    | 0.957  | 10.6091954  |
-| 16    | 0.742  | 13.68328841 |
-| 20    | 0.634  | 16.01419558 |
-| 24    | 0.655  | 15.50076336 |
+| Cores | Time (s) | Speedup     |
+|-------|----------|-------------|
+| 1     | 9.172    | 1           |
+| 2     | 4.692    | 1.954816709 |
+| 4     | 2.293    | 4           |
+| 8     | 1.196    | 7.668896321 |
+| 12    | 0.854    | 10.74004684 |
+| 16    | 0.76     | 12.06842105 |
+| 20    | 0.66     | 13.8969697  |
+| 24    | 0.587    | 15.62521295 |
 
 ![matrix-graph](images/matrix_multiplication.png)
 
@@ -703,7 +705,7 @@ let a = Array.create_float n
 
 let _ =
   let pool = Task.setup_pool ~num_domains:(num_domains - 1) in
-  Task.parallel_for pool ~chunk_size:(n/num_domains) ~start:0
+  Task.parallel_for pool ~start:0
   ~finish:(n - 1) ~body:(fun i -> Array.set a i (Random.float 1000.));
   Task.teardown_pool pool
 ```
@@ -713,7 +715,7 @@ Let us measure how it scales.
 | #Cores | Time(s) |
 |--------|---------|
 | 1      | 3.136   |
-| 2      | 7.648   |
+| 2      | 10.19   |
 | 4      | 11.815  |
 
 When we had expected to see speedup executing in multiple cores, what we see
@@ -751,7 +753,7 @@ let arr = Array.create_float n
 let _ =
   let domains = T.setup_pool ~num_domains:(num_domains - 1) in
   let states = Array.init num_domains (fun _ -> Random.State.make_self_init()) in
-  T.parallel_for domains ~chunk_size:(n/num_domains) ~start:0 ~finish:(n-1)
+  T.parallel_for domains ~start:0 ~finish:(n-1)
   ~body:(fun i ->
     let d = (Domain.self() :> int) mod num_domains in
     Array.unsafe_set arr i (Random.State.float states.(d) 100. ))
