@@ -177,7 +177,7 @@ this on `utop`.
 ```ocaml
 # open Domainslib
 
-# let pool = Task.setup_pool ~num_domains:3
+# let pool = Task.setup_pool ~num_additional_domains:3
 val pool : Task.pool = <abstr>
 ```  
 We have created a new task pool with three new domains. The parent domain is
@@ -704,7 +704,7 @@ let n = try int_of_string Sys.argv.(2) with _ -> 100000
 let a = Array.create_float n
 
 let _ =
-  let pool = Task.setup_pool ~num_domains:(num_domains - 1) in
+  let pool = Task.setup_pool ~num_additional_domains:(num_domains - 1) in
   Task.parallel_for pool ~start:0
   ~finish:(n - 1) ~body:(fun i -> Array.set a i (Random.float 1000.));
   Task.teardown_pool pool
@@ -751,7 +751,7 @@ let num_domains = try int_of_string Sys.argv.(1) with _ -> 4
 let arr = Array.create_float n
 
 let _ =
-  let domains = T.setup_pool ~num_domains:(num_domains - 1) in
+  let domains = T.setup_pool ~num_additional_domains:(num_domains - 1) in
   let states = Array.init num_domains (fun _ -> Random.State.make_self_init()) in
   T.parallel_for domains ~start:0 ~finish:(n-1)
   ~body:(fun i ->
@@ -813,7 +813,7 @@ let init_part s e arr =
     done
 
 let _ =
-  let domains = T.setup_pool ~num_domains:(num_domains - 1) in
+  let domains = T.setup_pool ~num_additional_domains:(num_domains - 1) in
   T.parallel_for domains ~chunk_size:1 ~start:0 ~finish:(num_domains - 1)
   ~body:(fun i -> init_part (i * n / num_domains) ((i+1) * n / num_domains - 1) arr);
   T.teardown_pool domains
