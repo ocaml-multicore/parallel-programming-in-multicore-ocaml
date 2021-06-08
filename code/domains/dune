@@ -1,3 +1,11 @@
-(executable
+(test
   (name square_domain)
   (modules square_domain))
+
+(test
+  (name hello_world)
+  (modules hello_world))
+
+(test
+  (name nested_dom)
+  (modules nested_dom))

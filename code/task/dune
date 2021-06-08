@@ -1,27 +1,27 @@
-(executable
+(test
   (name matrix_multiplication)
   (modules matrix_multiplication))
 
-(executable
+(test
   (name matrix_multiplication_multicore)
   (modules matrix_multiplication_multicore)
   (libraries domainslib))
 
-(executable
+(test
   (name three_matrix_multiplication)
   (modules three_matrix_multiplication)
   (libraries domainslib))
 
-(executable
+(test
   (name fibonacci)
   (modules fibonacci)
   (libraries domainslib))
 
-(executable
+(test
   (name fibonacci_multicore)
   (modules fibonacci_multicore)
   (libraries domainslib))
 
-(executable
+(test
   (name fibonacci_domains)
   (modules fibonacci_domains))

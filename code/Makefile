@@ -3,3 +3,6 @@ all:
 
 clean:
 	dune clean
+
+test:
+	dune runtest -f
