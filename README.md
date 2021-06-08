@@ -181,13 +181,13 @@ this on `utop`.
 val pool : Task.pool = <abstr>
 ```  
 We have created a new task pool with three new domains. The parent domain is
-also part of this pool, thus making it a pool of four domains. After the pool
-is setup, we can use this pool to execute all tasks we want to run in parallel.
-The `setup_pool` function requires us to specify the number of new domains to
-be spawned in the task pool. The ideal number of domains to initiate a task
-pool with is equal to the number of cores available. Since the parent domain
-also takes part in the pool, the `num_domains` parameter should be one less
-than the number of available cores.
+also part of this pool, thus making it a pool of four domains. After the pool is
+setup, we can use this pool to execute all tasks we want to run in parallel. The
+`setup_pool` function requires us to specify the number of new domains to be
+spawned in the task pool. The ideal number of domains to initiate a task pool
+with is equal to the number of cores available. Since the parent domain also
+takes part in the pool, the `num_additional_domains` parameter should be one
+less than the number of available cores.
 
 Closing the task pool after execution of all tasks, though not strictly
 necessary, is highly recommended. This can be done as
