@@ -5,7 +5,7 @@ let num_domains = try int_of_string Sys.argv.(1) with _ -> 4
 let arr = Array.create_float n
 
 let _ =
-  let domains = T.setup_pool ~num_domains:(num_domains - 1) in
+  let domains = T.setup_pool ~num_additional_domains:(num_domains - 1) in
   let states = Array.init num_domains (fun _ -> Random.State.make_self_init()) in
   T.parallel_for domains ~chunk_size:(n/num_domains) ~start:0 ~finish:(n-1)
   ~body:(fun i ->
