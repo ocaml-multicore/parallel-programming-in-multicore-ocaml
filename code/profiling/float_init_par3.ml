@@ -1,11 +1,12 @@
 module T = Domainslib.Task
 let n = try int_of_string Sys.argv.(2) with _ -> 1000
 let num_domains = try int_of_string Sys.argv.(1) with _ -> 4
+let k = Domain.DLS.new_key Random.State.make_self_init
 
 let arr = Array.create_float n
 
 let init_part s e arr =
-    let my_state = Random.State.make_self_init () in
+    let my_state = Domain.DLS.get k in
     for i = s to e do
       Array.unsafe_set arr i (Random.State.float my_state 100.)
     done
