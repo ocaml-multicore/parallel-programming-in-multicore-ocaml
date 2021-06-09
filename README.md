@@ -179,7 +179,7 @@ this on `utop`.
 
 # let pool = Task.setup_pool ~num_additional_domains:3
 val pool : Task.pool = <abstr>
-```  
+```
 We have created a new task pool with three new domains. The parent domain is
 also part of this pool, thus making it a pool of four domains. After the pool is
 setup, we can use this pool to execute all tasks we want to run in parallel. The
@@ -285,7 +285,7 @@ to be executed.
 Parallel for also has an optional parameter `chunk_size`. It determines the
 granularity of tasks when executing them on multiple domains. If no parameter
 is given for `chunk size`, a default chunk size is determined which performs
-well in most cases. Only if the default chunk size doesn't work well, it is
+well in most cases. Only if the default chunk size doesn't work well, is it
 recommended to experiment with different chunk sizes. The ideal `chunk_size`
 depends on a combination of factors:
 
@@ -297,7 +297,7 @@ iterations divided by the number of cores. On the other hand, if the amount of
 time taken is different for every iteration, the chunks should be smaller. If
 the total number of iterations is a sizeable number, a `chunk_size` like 32 or
 16 is safe to use, whearas if the number of iterations is low, like say 10, a
-`chunk_size` of 1 would perform best.  
+`chunk_size` of 1 would perform best.
 
 * **Machine:** Optimal chunk size varies across machines and it is recommended
 to experiment with a range of values to find out what works best on yours.
@@ -350,14 +350,14 @@ let parallel_matrix_multiply_3 pool m1 m2 m3 =
   let t = Array.make_matrix size size 0 in (* stores m1*m2 *)
   let res = Array.make_matrix size size 0 in
 
-  Task.parallel_for pool ~chunk_size:(size/num_domains) ~start:0 ~finish:(size - 1) ~body:(fun i ->
+  Task.parallel_for pool ~start:0 ~finish:(size - 1) ~body:(fun i ->
     for j = 0 to size - 1 do
       for k = 0 to size - 1 do
         t.(i).(j) <- t.(i).(j) + m1.(i).(k) * m2.(k).(j)
       done
     done);
 
-  Task.parallel_for pool ~chunk_size:(size/num_domains) ~start:0 ~finish:(size - 1) ~body:(fun i ->
+  Task.parallel_for pool ~start:0 ~finish:(size - 1) ~body:(fun i ->
     for j = 0 to size - 1 do
       for k = 0 to size - 1 do
         res.(i).(j) <- res.(i).(j) + t.(i).(k) * m3.(k).(j)
@@ -505,7 +505,7 @@ The above example would be essentially blocking indefinitely because the `send`
 does not have a corresponding receive. If we instead create a bounded channel
 with buffer size n, it can store up to [n] objects in the channel without a
 corresponding receive, exceeding which the sending would block. We can try it
-with the same example as above just by changing the buffer size to 1.   
+with the same example as above just by changing the buffer size to 1.
 
 ```ocaml
 open Domainslib
@@ -611,7 +611,7 @@ let _ =
   worker (update results) ();
   Array.iter Domain.join domains;
   Array.iter (Printf.printf "%d ") results
-```  
+```
 
 We have created an unbounded channel `c` which will act as a store for all the
 tasks. We'll pay attention to two functions here: `create_work` and `worker`.
@@ -659,7 +659,7 @@ that if a lot more time is spent outside the function we'd like to parallelise,
 the maximum speedup we could achieve would be lower.
 
 Profiling serial code can help us discover the hotspots where we might want to
-introduce parallelism.  
+introduce parallelism.
 
 ```
 Samples: 51K of event 'cycles:u', Event count (approx.): 28590830181
@@ -791,7 +791,7 @@ Shared Data Cache Line Table     (2 entries, sorted on Total HITMs)
        ----------- Cacheline ----------    Total      Tot  ----- LLC Load Hitm -----  ---- Store Reference ----  --- Loa
 Index             Address  Node  PA cnt  records     Hitm    Total      Lcl      Rmt    Total    L1Hit   L1Miss       Lc
     0      0x7f2bf49d7dc0     0   11473    13008   94.23%     1306     1306        0     1560      595      965        ◆
-    1      0x7f2bf49a7b80     0     271      368    5.48%       76       76        0      123       76       47        
+    1      0x7f2bf49a7b80     0     271      368    5.48%       76       76        0      123       76       47
 ```
 
 As evident from the report, there's quite a lot of false sharing happening in
@@ -953,7 +953,7 @@ So far we have only found that there is an imbalance in task distribution
 in the code, we'll need to change our code accordingly to make the task
 distribution more balanced, which could increase the speedup.
 
----   
+---
 
 Performace debugging can be quite tricky at times. If you could use some help in
 debugging your Multicore OCaml code, feel free to create an issue in the
