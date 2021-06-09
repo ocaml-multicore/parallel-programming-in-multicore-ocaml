@@ -51,8 +51,9 @@ compiler.
 
 * [**Domainslib**](https://github.com/ocaml-multicore/domainslib): Data and
 control structures for parallel programming.
-* [**Lockfree**](https://github.com/ocaml-multicore/lockfree): [Lock-free](https://en.wikipedia.org/wiki/Non-blocking_algorithm#Lock-freedom) data
-structures (list, hash, bag and queue).
+* [**Lockfree**](https://github.com/ocaml-multicore/lockfree):
+  [Lock-free](https://en.wikipedia.org/wiki/Non-blocking_algorithm#Lock-freedom)
+  data structures (list, hash, bag and queue).
 * [**Reagents**](https://github.com/ocaml-multicore/reagents): Composable lock-
 free concurrency library for expressing fine grained parallel programs on
 Multicore OCaml
@@ -429,7 +430,8 @@ let rec fib_par n d =
     let b = Domain.spawn (fun _ -> fib_par (n-2) (d-1)) in
     a + Domain.join b
 ```
-We can as well use task pools to execute tasks asynchronously, which is less tedious and scales better.
+We can as well use task pools to execute tasks asynchronously, which is less
+tedious and scales better.
 
 ```ocaml
 let rec fib_par pool n =
@@ -629,6 +631,48 @@ the worker function, for instance, worker can run for a range of tasks instead
 of single one.
 
 
+## Domain-local Storage
+
+Domain-local storage (DLS) offers an easy way to store values private to a
+domain. DLS values can be accessed anywhere within the same domain.
+
+Every DLS value is associated to a key. New key needs an initializer, which will
+be used to bind a value to the key in a domain, in case it is not done.
+
+
+```ocaml
+# let k = Domain.DLS.new_key (fun () -> 42);;
+val k : int Domain.DLS.key = <abstr>
+# Domain.DLS.get k;;
+- : int = 42
+```
+
+Since no value was bound to the key `k`, it was initialized with the value
+provided in its initializer. We can also set the value explixitly with
+`Domain.DLS.set`. `Domain.DLS.set key value` binds a `value` to `key` in the
+calling domain.
+
+```ocaml
+# Domain.DLS.set k 100;;
+- : unit = ()
+# Domain.DLS.get k;;
+- : int = 100
+```
+
+**Word of Caution**
+
+Domain-local values are to be treated like global variables, it is best minimize
+their usage. DLS might come in handy to preserve correctness and improve
+performance. One such case is usage of DLS with `Random` module, of which we
+shall be seeing an example.
+
+One needs to be careful not to store a large number of keys in DLS. DLS
+operations `get` and `set` have linear time complexity, hench increasing the
+number of keys linearly increases the time taken for those operations. If in
+case a large number of values are to be stored in DLS, it will be beneficial to
+store those values in a data structure like Map or Hash table first, and store
+the data structue in DLS.
+
 # Profiling your code
 
 While writing parallel programs in Multicore OCaml, it is quite common to
@@ -659,7 +703,7 @@ that if a lot more time is spent outside the function we'd like to parallelise,
 the maximum speedup we could achieve would be lower.
 
 Profiling serial code can help us discover the hotspots where we might want to
-introduce parallelism.  
+introduce parallelism.
 
 ```
 Samples: 51K of event 'cycles:u', Event count (approx.): 28590830181
@@ -735,7 +779,7 @@ Perf report would look something like this:
 
 We can see the overhead at Random bits is a whooping 87.99%. Typically there is
 no one cause that we can attribute to such overheads, since they are very
-specific to the program. It might need a little careful inspection to find out
+specific to particular programs. It might need a bit of careful inspection to find out
 what is causing them. In this case, the Random module is sharing same state
 amongst all the domains, which is causing contention when multiple domains are
 trying to access it at a time.
@@ -759,7 +803,10 @@ let _ =
     Array.unsafe_set arr i (Random.State.float states.(d) 100. ))
 ```
 
-We have created `num_domains` different Random States, each to be used by a different Domain. This might come across as a hack, but if those hacks help us to achieve better performance, there is no harm in using them, as long as the correctness is intact.
+We have created `num_domains` different Random States, each to be used by a
+different Domain. Having a separate Random state per domain reduces shared state
+amongst the domains thereby reducing contention, i.e. domains  are no longer
+racing to access the same value.
 
 We shall run this on multiple cores.
 
@@ -795,19 +842,20 @@ Index             Address  Node  PA cnt  records     Hitm    Total      Lcl     
 ```
 
 As evident from the report, there's quite a lot of false sharing happening in
-the code. To eliminate false sharing, we can allocate the Random state in the
-domain that is going to use it. This way, the states will be allocated with
-memory locations far from each other.
+the code. To eliminate false sharing, we can use domain-local storage to store
+Random States. Note that, it is unsafe to use `Random` module as it is on
+multiple domains, as some of its functions are not thread-safe.
 
 ```ocaml
 module T = Domainslib.Task
 let n = try int_of_string Sys.argv.(2) with _ -> 1000
 let num_domains = try int_of_string Sys.argv.(1) with _ -> 4
+let k = Domain.DLS.new_key Random.State.make_self_init
 
 let arr = Array.create_float n
 
 let init_part s e arr =
-    let my_state = Random.State.make_self_init () in
+    let my_state = Domain.DLS.get k in
     for i = s to e do
       Array.unsafe_set arr i (Random.State.float my_state 100.)
     done
@@ -837,7 +885,8 @@ Now the results are
 
 So, in this process, we have essentially identified bottlenecks for scaling and
 eliminated them to achieve better speedups. For more details on profiling with
-perf, please refer [these notes](https://github.com/ocaml-bench/notes/blob/master/profiling_notes.md).
+perf, please refer [these
+notes](https://github.com/ocaml-bench/notes/blob/master/profiling_notes.md).
 
 ## Eventlog
 
@@ -860,9 +909,10 @@ We can zoom in further to find any GC events causing huge latencies.
 
 ![eventlog-zoomed](images/eventlog-zoomed.png)
 
-There is also a [script](https://github.com/ocaml-multicore/ocaml-multicore/blob/parallel_minor_gc/tools/eventlog_to_latencies.py) available in
-`ocaml-multicore/tools` which displays some statistics from the generated eventlog.
-It can be invoked as
+There is also a
+[script](https://github.com/ocaml-multicore/ocaml-multicore/blob/parallel_minor_gc/tools/eventlog_to_latencies.py)
+available in `ocaml-multicore/tools` which displays some statistics from the
+generated eventlog. It can be invoked as
 
 ```
 python3 eventlog_to_latencies.py <eventlog>
@@ -957,4 +1007,6 @@ distribution more balanced, which could increase the speedup.
 
 Performace debugging can be quite tricky at times. If you could use some help in
 debugging your Multicore OCaml code, feel free to create an issue in the
-Multicore OCaml [issue tracker](https://github.com/ocaml-multicore/ocaml-multicore/issues) along with a minimal code example.
+Multicore OCaml [issue
+tracker](https://github.com/ocaml-multicore/ocaml-multicore/issues) along with a
+minimal code example.
