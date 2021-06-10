@@ -35,16 +35,21 @@ primarily by using multiple cores on a multicore machine. The multicore wiki
 has [comprehensive notes](https://github.com/ocaml-multicore/ocaml-multicore/wiki/Concurrency-and-parallelism-design-notes) on the design decisions and
 current status of concurrency and parallelism in Multicore OCaml.
 
-The Multicore OCaml compiler comes with two variants of Garbage Collector,
-namely a concurrent minor collector (ConcMinor) and a stop-the-world parallel
-minor collector (ParMinor). Our experiments have shown us that ParMinor
-performs better than ConcMinor in majority of the cases. ParMinor also does not
-need any changes in the C API of the compiler, unlike ConcMinor which breaks
-the C API. So, the consensus is to go forward with ParMinor during up-
-streaming of the Domains-only Multicore. ConcMinor is at OCaml version `4.06.1`
-and ParMinor has been promoted to `4.10.0` and `4.11.0`. More details on the GC
-design and evaluation are available in
-[this ICFP 2020 paper](https://dl.acm.org/doi/10.1145/3408995).
+The Multicore OCaml compiler ships with a concurrent major and a stop-the-world
+minor garbage collectors. The parallel minor collector doesn't require any
+changes to the C API, thereby not breaking any associated code with C API. The
+multicore bits of the compiler are actively being integrated with the mainstream
+OCaml compiler with [some PRs already merged into
+trunk](https://github.com/ocaml/ocaml/pulls?q=is%3Apr+label%3Amulticore-prerequisite+).
+OCaml 5.0 is expected to land with support for shared-memory parallelism and
+algebraic effects in later releases. A historical variant of the multicore minor
+garbage collector is the concurrent minor collector. Benchmarking experiments
+showed better results in terms of throughput and latency on the stop-the-world
+parallel minor collector, hence that's chosen to be the default minor collector
+on Multicore OCaml and the concurrent minor collector is not actively developed.
+For the intrigued, details on the design and evaluation of the Multicore GC and
+compiler are in our
+[academic publications](https://github.com/ocaml-multicore/ocaml-multicore/wiki#articles).
 
 The Multicore ecosystem also has the following libraries to complement the
 compiler.
@@ -59,27 +64,32 @@ Multicore OCaml
 * [**Kcas**](https://github.com/ocaml-multicore/kcas): Multi-word compare and
 swap library
 
-This tutorial takes you through ways in which one can profitably write parallel
-programs in Multicore OCaml. A reader is assumed to be familiar with OCaml, if
-not, they are encouraged to read [Real World OCaml](https://dev.realworldocaml.org/toc.html). The effect handlers story is not touched upon
-here, for anyone interested, do check out this [tutorial](https://github.com/ocamllabs/ocaml-effects-tutorial) and [examples](https://github.com/ocaml-multicore/effects-examples).
+This tutorial intends to take the reader through ways in which one can
+profitably write parallel programs in Multicore OCaml. The reader is assumed to
+be familiar with OCaml, if not, they are encouraged to read [Real World
+OCaml](https://dev.realworldocaml.org/toc.html). The effect handlers story is
+not touched upon here, for anyone interested, do check out this
+[tutorial](https://github.com/ocamllabs/ocaml-effects-tutorial) and
+[examples](https://github.com/ocaml-multicore/effects-examples).
 
 ## Installation
 
-Up-streaming of the multicore bits to trunk OCaml in progress, with [some PRs already merged to trunk](https://github.com/ocaml/ocaml/pulls?q=is%3Apr+label%3Amulticore-prerequisite+).
-One can start using Multicore OCaml with the help of [multicore-opam](https://github.com/ocaml-multicore/multicore-opam). Installation instructions for
-Multicore OCaml 4.10.0 compiler and domainslib can be found [here](https://github.com/ocaml-multicore/multicore-opam#install-multicore-ocaml).
-Other available compiler variants are [here](https://github.com/ocaml-multicore/multicore-opam/tree/master/packages/ocaml-variants).
+The latest version 4.12 of the Multicore compiler can be obtained from
+[multicore-opam](https://github.com/ocaml-multicore/multicore-opam).
+Installation instructions for the Multicore compiler and parallel programming
+library `domainslib` can be found
+[here](https://github.com/ocaml-multicore/multicore-opam#install-multicore-ocaml).
 
 It will also be useful to install `utop` on your Multicore switch.
 `opam install utop` should work out of the box.
 
-## Compatibility with existing code
+## Compiler variants and compatibility
 
-Multicore OCaml is compatible with existing OCaml code. It has support for the
-C API along with some tricky parts of the language like ephemerons and
-finalisers. To maintain compatibility with `ppx` there is a `no-effect-syntax`
-compiler variant in multicore-opam, that removes some syntax extensions.
+**`4.12.0+domains`**: With support for domains-only parallelism. This branch is
+close to what’s intended to be shipped with OCaml 5.0. Maintains compatibility
+with `ppx` and related libraries.
+
+**`4.12.0+domains+effects`**: With support for parallelism and algebraic effects.
 
 # Domains
 
