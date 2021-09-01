@@ -24,7 +24,7 @@ following sections:
 # Introduction
 
 Multicore OCaml is an extension of OCaml with native support for Shared-Memory
-Parallelism (SMP) through `Domains` and Concurrency through `Algebraic effects`. It is
+Parallelism (SMP) through `Domains` and Concurrency through `Algebraic Effects`. It is
 slowly, but steadily being merged to the OCaml trunk. Domains-only Multicore is
 expected to land first, followed by Algebraic Effects.
 
@@ -66,7 +66,7 @@ swap library
 
 Find ways to profitably write parallel programs in Multicore OCaml. The reader is assumed to
 be familiar with OCaml. If not, they are encouraged to read [Real World
-OCaml](https://dev.realworldocaml.org/toc.html). The effect-handlers' story is
+OCaml](https://dev.realworldocaml.org/toc.html). The effect handlers' story is
 not covered here. For anyone interested, please check out this
 [tutorial](https://github.com/ocamllabs/ocaml-effects-tutorial) and some 
 [examples](https://github.com/ocaml-multicore/effects-examples).
@@ -84,7 +84,7 @@ It will also be useful to install `utop` on your Multicore switch by running
 
 ## Compiler Variants and Compatibility
 
-**`4.12.0+domains`** with support for Domains-only Parallelism. This branch is
+**`4.12.0+domains`** with support for domains-only Parallelism. This branch is
 close to what’s intended to be shipped with OCaml 5.0. It maintains compatibility
 with `ppx` and related libraries.
 
@@ -164,7 +164,7 @@ not a Multicore switch. Using a Multicore compiler variant should resolve them.
 the following APIs which enable easy ways to parallelise OCaml code with only a few
 modifications to sequential code:
 
-* **Task**: Work stealing task pool with async/await parallelism and parallel_{for, scan}
+* **Task**: Work stealing task pool with async/await Parallelism and `parallel_{for, scan}`
 * **Channels**: Multiple Producer Multiple Consumer channels which come in two flavours—bounded and unbounded
 
 `Domainslib` is effective in scaling performance when parallelisable
@@ -299,7 +299,7 @@ recommended to experiment with different chunk sizes. The ideal `chunk_size`
 depends on a combination of factors:
 
 * **Nature of the Loop:** There are two things to consider pertaining to the
-loop while deciding on a `chunk_size`—the *number of iterations* in the
+loop when deciding on a `chunk_size`—the *number of iterations* in the
 loop and the *amount of time* each iteration takes. If the amount of time is roughly equal, 
 then the `chunk_size` could be the number of
 iterations divided by the number of cores. On the other hand, if the amount of
@@ -378,7 +378,7 @@ let parallel_matrix_multiply_3 pool m1 m2 m3 =
 
 In a hypothetical situation where `parallel_for` didn't have an implicit
 barrier, as in the example above, it's very likely that the computation of `res`
-wouldn't be correct. Since, we already have an implicit barrier, it will perform 
+wouldn't be correct. Since we already have an implicit barrier, it will perform 
 the right computation.
 
 #### Order of Execution
@@ -390,7 +390,7 @@ done
 ```
 
 A sequential `for` loop, like the one above, runs its iterations in the exact
-same order—from `start` to `finish`. However, `parallel_for` makes the order of
+same order, from `start` to `finish`. However, `parallel_for` makes the order of
 execution arbitrary and varies it between two runs of the exact same code. If
 the iteration order is important for your code, it's
 advisable to use `parallel_for` with some caution.
@@ -460,11 +460,11 @@ threshold, below which the computation can be performed sequentially.
 
 * `Task.async` and `Task.await` -> used to run the tasks in parallel
   + **Task.async** executes the task in the pool asynchronously and returns
-  a promise, a computation that is not yet complete. After the execution finished, 
-  its result will be stored in the promise.
+  a promise, a computation that is not yet complete. After the execution finishes, 
+  it result will be stored in the promise.
 
   + **Task.await** waits for the promise to complete its execution. Once it's 
-  done, the result of the task is returned. In case the task raises an
+  done, it returns the result of the task. In case the task raises an
   uncaught exception, `await` also raises the same exception.
 
 
@@ -472,7 +472,7 @@ threshold, below which the computation can be performed sequentially.
 
 ## Bounded Channels
 
-Channels act as medium to communicate data between domains and can be shared
+Channels act as a medium to communicate data between domains and can be shared
 between multiple sending and receiving domains. Channels in Multicore OCaml
 come in two flavours:
 
@@ -528,7 +528,7 @@ let _ =
 Now the send will not block anymore.
 
 If you don't want to block in `send` or `recv`, `send_poll` and `recv_poll` might
-come in handy. They return a boolean value, so if the operation was successful we
+come in handy. They return a Boolean value, so if the operation was successful we
 get a `true`, otherwise a `false`.
 
 ```ocaml
@@ -626,7 +626,7 @@ tasks. We'll pay attention to two functions here: `create_work` and `worker`.
 
 `create_work` takes an array of tasks and pushes all task elements to the
 channel `c`. The `worker` function receives tasks from the channel and executes
-a function `f` with the received task as parameter. It keeps repeating until it
+a function `f` with the received task as a parameter. It keeps repeating until it
 encounters a `Quit` message, which indicates `worker` can terminate.
 
 Use this template to run any task on multiple cores by running the
@@ -651,7 +651,7 @@ OCaml code.
 
 **Profiling Serial Code**
 
-Profiling serial code can help us identify parts of code that can potentially
+Profiling serial code can help identify parts of code that can potentially
 benefit from parallelising. Let's do it for the sequential version of matrix
 multiplication:
 
@@ -785,7 +785,7 @@ close to what we expected. Here's the `perf` report:
 The overheads at Random bits is less than the previous case, but it's still
 quite high at 59.73%. We've used a separate Random State for every domain, so
 the overheads aren't caused by any shared state; however, if we look closely, the
-Random States are all allocated by the same domain in an array with small
+Random States are all allocated by the same domain in an array with a small
 number of elements, possibly located close to each other in physical memory.
 When multiple domains try to access them, they might be sharing cache
 lines, or `false sharing`. We can confirm our suspicion with the
@@ -878,14 +878,14 @@ $ ocaml-eventlog-pausetimes caml-10599-0.eventlog caml-10599-2.eventlog caml-105
 
 **Diagnose Imbalance in Task Distribution**
 
-`eventlog` can be useful to find imbalance in task distribution 
+*Eventlog* can be useful to find imbalance in task distribution 
 in a parallel program. Imbalance in task distribution essentially means that
 not all domains are provided with equal amount of computation to perform, so some 
 domains take longer than others to finish their computations, while the idle domains 
 keep waiting. This can occur when a sub-
 optimal `chunk_size` is picked in a `parallel_for`.
 
-Time periods when an idle domain is recorded as `domain/idle_wait` in the
+Time periods show when an idle domain is recorded as `domain/idle_wait` in the
 `eventlog`. Here is an example `eventlog` generated by a program with unbalanced
 task distribution.
 
