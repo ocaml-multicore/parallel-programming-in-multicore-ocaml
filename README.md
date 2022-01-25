@@ -24,9 +24,9 @@ following sections:
 # Introduction
 
 Multicore OCaml is an extension of OCaml with native support for Shared-Memory
-Parallelism (SMP) through `Domains` and Concurrency through `Algebraic Effects`. It is
-slowly, but steadily being merged to the OCaml trunk. Domains-only Multicore is
-expected to land first, followed by Algebraic Effects.
+Parallelism (SMP) through `Domains` and Concurrency through `Algebraic Effects`.
+It is merged to trunk OCaml. OCaml 5.0 will be the first release to officially
+support Multicore.
 
 **Concurrency** is how we partition multiple computations such that they can
 run in overlapping time periods rather than strictly sequentially.
@@ -37,12 +37,9 @@ current status of Concurrency and Parallelism in Multicore OCaml.
 
 The Multicore OCaml compiler ships with a concurrent major and a stop-the-world
 minor *garbage collector* (GC). The parallel minor GC doesn't require any
-changes to the C API, thereby not breaking any associated code with C API. The
-Multicore bits of the compiler are actively being integrated with the mainstream
-OCaml compiler with [some PRs already merged into its 
-trunk](https://github.com/ocaml/ocaml/pulls?q=is%3Apr+label%3Amulticore-prerequisite+).
+changes to the C API, thereby not breaking any associated code with C API.
 OCaml 5.0 is expected to land with support for Shared-Memory Parallelism and
-Algebraic Effects in later releases. A historical variant of the Multicore minor
+Algebraic Effects. A historical variant of the Multicore minor
 garbage collector is the concurrent minor collector. Benchmarking experiments
 showed better results in terms of throughput and latency on the stop-the-world
 parallel minor collector, hence that's chosen to be the default minor collector
@@ -56,6 +53,7 @@ compiler:
 
 * [**Domainslib**](https://github.com/ocaml-multicore/domainslib): data and
 control structures for parallel programming
+* [**Eio**](https://github.com/ocaml-multicore/eio): effects-based direct-style IO for multicore OCaml
 * [**Lockfree**](https://github.com/ocaml-multicore/lockfree): [lock-free](https://en.wikipedia.org/wiki/Non-blocking_algorithm#Lock-freedom) data
 structures (list, hash, bag and queue)
 * [**Reagents**](https://github.com/ocaml-multicore/reagents): composable lock-free 
@@ -64,29 +62,27 @@ Multicore OCaml
 * [**Kcas**](https://github.com/ocaml-multicore/kcas): multi-word compare and
 swap library
 
-Find ways to profitably write parallel programs in Multicore OCaml. The reader is assumed to
-be familiar with OCaml. If not, they are encouraged to read [Real World
-OCaml](https://dev.realworldocaml.org/toc.html). The effect handlers' story is
-not covered here. For anyone interested, please check out this
-[tutorial](https://github.com/ocamllabs/ocaml-effects-tutorial) and some 
+Find ways to profitably write parallel programs in Multicore OCaml. The reader
+is assumed to be familiar with OCaml. If not, they are encouraged to read [Real
+World OCaml](https://dev.realworldocaml.org/toc.html). The effect handlers'
+story is not covered here. For anyone interested, please check out this
+[tutorial](https://github.com/ocamllabs/ocaml-effects-tutorial) and some
 [examples](https://github.com/ocaml-multicore/effects-examples).
 
 ## Installation
 
-The latest Multicore compiler version (4.12) can be obtained from
-[multicore-opam](https://github.com/ocaml-multicore/multicore-opam).
-Installation instructions for the Multicore compiler and parallel programming
-library `domainslib` can be found
-[here](https://github.com/ocaml-multicore/multicore-opam#install-multicore-ocaml).
+Any of the below listed Multicore compiler variants and libraries can be installed from opam.
 
-It will also be useful to install `utop` on your Multicore switch by running 
-`opam install utop`, which should work out of the box.
+It will also be useful to install `utop` on your Multicore switch by running
+`opam install utop`, which should work out of the box. Please note that the 4.12 variants are no
+longer actively maintained.
 
 ## Compiler Variants and Compatibility
 
-**`4.12.0+domains`** with support for domains-only Parallelism. This branch is
-close to what’s intended to be shipped with OCaml 5.0. It maintains compatibility
-with `ppx` and related libraries.
+**`5.00.0+trunk`** Preview of what will be the OCaml 5.00 release.
+
+**`4.12.0+domains`** with support for domains-only Parallelism. It maintains
+compatibility with `ppx` and related libraries.
 
 **`4.12.0+domains+effects`** with support for Parallelism and Algebraic Effects.
 
@@ -185,7 +181,7 @@ Note: If you are running this on `utop,` run `#require "domainslib"` with the ha
 ```ocaml
 # open Domainslib
 
-# let pool = Task.setup_pool ~num_additional_domains:3
+# let pool = Task.setup_pool ~num_additional_domains:3 ()
 val pool : Task.pool = <abstr>
 ```
 We have created a new *task pool* with three new domains. The parent domain is
@@ -710,9 +706,9 @@ let n = try int_of_string Sys.argv.(2) with _ -> 100000
 let a = Array.create_float n
 
 let _ =
-  let pool = Task.setup_pool ~num_additional_domains:(num_domains - 1) in
-  Task.parallel_for pool ~start:0
-  ~finish:(n - 1) ~body:(fun i -> Array.set a i (Random.float 1000.));
+  let pool = Task.setup_pool ~num_additional_domains:(num_domains - 1) () in
+  Task.run pool (fun () -> Task.parallel_for pool ~start:0
+  ~finish:(n - 1) ~body:(fun i -> Array.set a i (Random.float 1000.)));
   Task.teardown_pool pool
 ```
 
@@ -757,12 +753,12 @@ let num_domains = try int_of_string Sys.argv.(1) with _ -> 4
 let arr = Array.create_float n
 
 let _ =
-  let domains = T.setup_pool ~num_additional_domains:(num_domains - 1) in
+  let domains = T.setup_pool ~num_additional_domains:(num_domains - 1) () in
   let states = Array.init num_domains (fun _ -> Random.State.make_self_init()) in
-  T.parallel_for domains ~start:0 ~finish:(n-1)
+  T.run domains (fun () -> T.parallel_for domains ~start:0 ~finish:(n-1)
   ~body:(fun i ->
     let d = (Domain.self() :> int) mod num_domains in
-    Array.unsafe_set arr i (Random.State.float states.(d) 100. ))
+    Array.unsafe_set arr i (Random.State.float states.(d) 100. )))
 ```
 
 We have created `num_domains` different Random States, each to be used by a different domain. This might come 
@@ -821,9 +817,9 @@ let init_part s e arr =
     done
 
 let _ =
-  let domains = T.setup_pool ~num_additional_domains:(num_domains - 1) in
-  T.parallel_for domains ~chunk_size:1 ~start:0 ~finish:(num_domains - 1)
-  ~body:(fun i -> init_part (i * n / num_domains) ((i+1) * n / num_domains - 1) arr);
+  let domains = T.setup_pool ~num_additional_domains:(num_domains - 1) () in
+  T.run domains (fun () -> T.parallel_for domains ~chunk_size:1 ~start:0 ~finish:(num_domains - 1)
+  ~body:(fun i -> init_part (i * n / num_domains) ((i+1) * n / num_domains - 1) arr));
   T.teardown_pool domains
 ```
 
