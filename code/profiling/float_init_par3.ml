@@ -11,7 +11,7 @@ let init_part s e arr =
     done
 
 let _ =
-  let domains = T.setup_pool ~num_additional_domains:(num_domains - 1) in
-  T.parallel_for domains ~chunk_size:1 ~start:0 ~finish:(num_domains - 1)
-  ~body:(fun i -> init_part (i * n / num_domains) ((i+1) * n / num_domains - 1) arr);
+  let domains = T.setup_pool ~num_additional_domains:(num_domains - 1) () in
+  T.run domains (fun () -> T.parallel_for domains ~chunk_size:1 ~start:0 ~finish:(num_domains - 1)
+  ~body:(fun i -> init_part (i * n / num_domains) ((i+1) * n / num_domains - 1) arr));
   T.teardown_pool domains

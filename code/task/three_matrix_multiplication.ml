@@ -34,12 +34,12 @@ let print_matrix m =
   done
 
 let _ =
-    let pool = Task.setup_pool ~num_additional_domains:(num_domains - 1) in
+    let pool = Task.setup_pool ~num_additional_domains:(num_domains - 1) () in
     let m1 = Array.init n (fun _ -> Array.init n (fun _ -> Random.int 100)) in
     let m2 = Array.init n (fun _ -> Array.init n (fun _ -> Random.int 100)) in
     let m3 = Array.init n (fun _ -> Array.init n (fun _ -> Random.int 100)) in
     (* print_matrix m1;
     print_matrix m2; *)
-    let _ = parallel_matrix_multiply_3 pool m1 m2 m3 in
+    let _ = Task.run pool (fun () -> parallel_matrix_multiply_3 pool m1 m2 m3) in
     Task.teardown_pool pool
     (* print_matrix m3; *)
