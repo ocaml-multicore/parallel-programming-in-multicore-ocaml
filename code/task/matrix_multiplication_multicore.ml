@@ -27,7 +27,7 @@ let print_matrix m =
   done
 
 let _ =
-    let pool = Task.setup_pool ~num_additional_domains:(num_domains - 1) () in
+    let pool = Task.setup_pool ~num_domains:(num_domains - 1) () in
     let m1 = Array.init n (fun _ -> Array.init n (fun _ -> Random.int 100)) in
     let m2 = Array.init n (fun _ -> Array.init n (fun _ -> Random.int 100)) in
     let _ = Task.run pool (fun () -> parallel_matrix_multiply pool m1 m2) in
