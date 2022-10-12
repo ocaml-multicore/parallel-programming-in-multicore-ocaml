@@ -71,20 +71,10 @@ story is not covered here. For anyone interested, please check out this
 
 ## Installation
 
-Any of the below listed Multicore compiler variants and libraries can be installed from opam.
+Instructions to install OCaml 5 compiler is [here](https://github.com/ocaml-multicore/awesome-multicore-ocaml#installation).
 
 It will also be useful to install `utop` on your Multicore switch by running
-`opam install utop`, which should work out of the box. Please note that the 4.12 variants are no
-longer actively maintained.
-
-## Compiler Variants and Compatibility
-
-**`5.00.0+trunk`** Preview of what will be the OCaml 5.00 release.
-
-**`4.12.0+domains`** with support for domains-only Parallelism. It maintains
-compatibility with `ppx` and related libraries.
-
-**`4.12.0+domains+effects`** with support for Parallelism and Algebraic Effects.
+`opam install utop`, which should work out of the box.
 
 # Domains
 
@@ -181,7 +171,7 @@ Note: If you are running this on `utop,` run `#require "domainslib"` with the ha
 ```ocaml
 # open Domainslib
 
-# let pool = Task.setup_pool ~num_additional_domains:3 ()
+# let pool = Task.setup_pool ~num_domains:3 ()
 val pool : Task.pool = <abstr>
 ```
 We have created a new *task pool* with three new domains. The parent domain is
@@ -190,7 +180,7 @@ setup, we can use it to execute all tasks we want to run in parallel. The
 `setup_pool` function requires us to specify the number of new domains to be
 spawned in the task pool. Ideally, the number of domains used to initiate a task pool 
 will match the number of available cores. Since the parent domain also
-takes part in the pool, the `num_additional_domains` parameter should be one
+takes part in the pool, the `num_domains` parameter should be one
 less than the number of available cores.
 
 Although not strictly necessary, we highly recommended closing the task pool 
@@ -706,7 +696,7 @@ let n = try int_of_string Sys.argv.(2) with _ -> 100000
 let a = Array.create_float n
 
 let _ =
-  let pool = Task.setup_pool ~num_additional_domains:(num_domains - 1) () in
+  let pool = Task.setup_pool ~num_domains:(num_domains - 1) () in
   Task.run pool (fun () -> Task.parallel_for pool ~start:0
   ~finish:(n - 1) ~body:(fun i -> Array.set a i (Random.float 1000.)));
   Task.teardown_pool pool
@@ -753,7 +743,7 @@ let num_domains = try int_of_string Sys.argv.(1) with _ -> 4
 let arr = Array.create_float n
 
 let _ =
-  let domains = T.setup_pool ~num_additional_domains:(num_domains - 1) () in
+  let domains = T.setup_pool ~num_domains:(num_domains - 1) () in
   let states = Array.init num_domains (fun _ -> Random.State.make_self_init()) in
   T.run domains (fun () -> T.parallel_for domains ~start:0 ~finish:(n-1)
   ~body:(fun i ->
@@ -817,7 +807,7 @@ let init_part s e arr =
     done
 
 let _ =
-  let domains = T.setup_pool ~num_additional_domains:(num_domains - 1) () in
+  let domains = T.setup_pool ~num_domains:(num_domains - 1) () in
   T.run domains (fun () -> T.parallel_for domains ~chunk_size:1 ~start:0 ~finish:(num_domains - 1)
   ~body:(fun i -> init_part (i * n / num_domains) ((i+1) * n / num_domains - 1) arr));
   T.teardown_pool domains
