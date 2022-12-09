@@ -16,6 +16,6 @@ let rec fib_par pool n =
 
 let main =
   let pool = Task.setup_pool ~num_domains:(num_domains - 1) () in
-  let res = Task.run pool (fun () -> fib_par pool) n in
+  let res = Task.run pool (fun () -> fib_par pool n) in
   Task.teardown_pool pool;
   Printf.printf "fib(%d) = %d\n" n res
