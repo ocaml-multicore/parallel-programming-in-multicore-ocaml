@@ -19,7 +19,7 @@ following sections:
   * [Task Distribution using Channels](#task-distribution-using-channels)
 - [Profiling your code](#profiling-your-code)
   * [Perf](#perf)
-  * [Eventlog](#eventlog)
+  * [Olly](#olly)
 
 # Introduction
 
@@ -864,7 +864,7 @@ $ ocaml-eventlog-pausetimes caml-10599-0.eventlog caml-10599-2.eventlog caml-105
 
 **Diagnose Imbalance in Task Distribution**
 
-*Eventlog* can be useful to find imbalance in task distribution 
+*Eventlog*(for OCaml versions < 5.0) can be useful to find imbalance in task distribution 
 in a parallel program. Imbalance in task distribution essentially means that
 not all domains are provided with equal amount of computation to perform, so some 
 domains take longer than others to finish their computations, while the idle domains 
@@ -884,6 +884,17 @@ If we zoom in further, we see many `domain/idle_wait` events.
 So far we've only found an imbalance in task distribution
 in the code, so we'll need to change our code accordingly to make the task
 distribution more balanced, which could increase the speedup.
+
+If you're running OCaml version > 5.0, you can use Olly to summarize data from runtime events.
+
+*Olly* Olly is part of the `runtime_events_tools` package. Install Olly on your switch using `opam install runtime_event_tools`.
+
+Olly can be used in the following manner `olly trace program_trace.json 'program.exe [args]'`. The json file can then be viewed in your browser.
+
+Olly also allows you to measure the GC latency and view a parseable histogram summary of pause durations. Latency can be measured using 
+`olly latency 'program.exe [args]'`.
+
+For more information on runtime instrumentation, please refer here : https://v2.ocaml.org/manual/runtime-tracing.html  
 
 ---
 
